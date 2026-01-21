@@ -1,4 +1,4 @@
-🧠 Agentic Memory Assistant (Currently Productio  Stage)
+🧠 Agentic Memory Assistant (Currently Production Stage)
 📌 Project Overview
 
 Agentic Memory Assistant is a beginner-friendly AI agent project built completely without any paid APIs or external AI services.
