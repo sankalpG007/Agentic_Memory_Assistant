@@ -18,37 +18,85 @@ class Agent:
         "i live", "i am in"
     ]
         return any(k in text.lower() for k in keywords)
+    
+    def is_memory_question(self, text):
+        questions = [
+            "who am i",
+            "what do you know about me",
+            "do you remember me",
+            "what do you remember",
+            "tell me about me"
+        ]
+        text = text.lower()
+        return any(q in text for q in questions)
+    
+    def answer_about_user(self):
+        memories = self.memory.get_all()
+
+        if not memories:
+            return "I don’t know much about you yet. You can tell me about your interests or background."
+
+        response = "Here’s what I remember about you:\n"
+        for m in memories:
+            response += f"- {m['text']}\n"
+
+        return response
+
+
 
     def respond(self, user_input):
-            user_input_lower = user_input.lower()
+        user_input_lower = user_input.lower()
 
-            # Exit phrases
-            if user_input_lower in ["exit", "bye", "thanks", "thank you"]:
-                self.state = "ended"
-                return "You're welcome 😊 All the best!"
+        # 1️⃣ Answer memory questions
+        if self.is_memory_question(user_input_lower):
+            return self.answer_about_user()
 
-            # End-of-input phrases
-            if user_input_lower in ["thats it", "that's it", "nothing else", "done"]:
-                self.state = "recommending"
-                return self.proactive_summary()
+        # 2️⃣ Exit / polite endings
+        if user_input_lower in ["exit", "bye", "bye bye"]:
+            self.state = "ended"
+            return "Goodbye 👋"
 
-            # If agent already recommended, don't repeat
-            if self.state == "recommending":
-                return "I’ve already shared my suggestions 👍 Let me know if you want help with something else."
+        if user_input_lower in ["thanks", "thank you"]:
+            return "You’re welcome 😊"
 
-            # Normal listening mode
-            intent = detect_intent(user_input)
+        # 3️⃣ Detect intent FIRST
+        intent = detect_intent(user_input)
 
-            if self.is_important(user_input):
-                self.memory.save(intent, user_input)
-                self.meaningful_inputs += 1
+        # 4️⃣ SAVE MEMORY BEFORE ANY DECISION
+        if self.is_important(user_input):
+            self.memory.save(intent, user_input)
+            self.meaningful_inputs += 1
 
-            # Switch to recommendation mode ONCE
-            if self.meaningful_inputs >= 2:
-                self.state = "recommending"
-                return self.proactive_recommendation()
+        # 5️⃣ Decide action AFTER memory is saved
+        action = self.decide_action(user_input)
 
-            return smart_fake_ai(user_input, self.memory.get_all())
+        if action == "recover":
+            self.state = "listening"
+            return "Alright 🙂 What would you like to talk about?"
+
+        if action == "recommend":
+            self.state = "recommending"
+            return self.proactive_recommendation()
+
+        # 6️⃣ Default listening response
+        return smart_fake_ai(user_input, self.memory.get_all())
+
+    def decide_action(self, user_input):
+        text = user_input.lower()
+
+        if any(w in text for w in ["bye", "exit"]):
+            return "end"
+
+        if any(w in text for w in ["thank"]):
+            return "polite_end"
+
+        if any(w in text for w in ["bad", "useless"]):
+            return "recover"
+
+        if self.meaningful_inputs >= 2:
+            return "recommend"
+
+        return "listen"
 
 
     def proactive_summary(self):
