@@ -1,7 +1,14 @@
 # agent.py
 
+from local_llm import generate_response
+from tools import (
+    python_study_planner,
+    ml_roadmap,
+    data_science_roadmap
+)
 from memory import Memory
-from brain import smart_fake_ai, detect_intent
+from brain import detect_intent
+
 
 class Agent:
     def __init__(self):
@@ -9,16 +16,44 @@ class Agent:
         self.meaningful_inputs = 0
         self.state = "listening"
 
+    # ---------- TOOL LOGIC ----------
 
+    def should_use_tool(self, user_input):
+        text = user_input.lower()
+
+        if "python" in text and ("learn" in text or "study" in text or "plan" in text):
+            return "python"
+
+        if ("machine learning" in text or "ml" in text) and ("learn" in text or "roadmap" in text):
+            return "ml"
+
+        if ("data science" in text or "ds" in text) and ("learn" in text or "roadmap" in text):
+            return "ds"
+
+        return None
+
+    def run_tool(self, tool_name):
+        if tool_name == "python":
+            return python_study_planner()
+
+        if tool_name == "ml":
+            return ml_roadmap()
+
+        if tool_name == "ds":
+            return data_science_roadmap()
+
+        return []
+
+    # ---------- MEMORY LOGIC ----------
 
     def is_important(self, text):
         keywords = [
-        "i am", "i want", "my goal",
-        "i have interest", "i like",
-        "i live", "i am in"
-    ]
+            "i am", "i want", "my goal",
+            "i have interest", "i like",
+            "i live", "i am in"
+        ]
         return any(k in text.lower() for k in keywords)
-    
+
     def is_memory_question(self, text):
         questions = [
             "who am i",
@@ -29,57 +64,21 @@ class Agent:
         ]
         text = text.lower()
         return any(q in text for q in questions)
-    
+
+
     def answer_about_user(self):
         memories = self.memory.get_all()
 
         if not memories:
             return "I don’t know much about you yet. You can tell me about your interests or background."
 
-        response = "Here’s what I remember about you:\n"
+        summary = "Here’s what I remember about you:\n"
         for m in memories:
-            response += f"- {m['text']}\n"
+            summary += f"- {m['text']}\n"
 
-        return response
+        return summary
 
-
-
-    def respond(self, user_input):
-        user_input_lower = user_input.lower()
-
-        # 1️⃣ Answer memory questions
-        if self.is_memory_question(user_input_lower):
-            return self.answer_about_user()
-
-        # 2️⃣ Exit / polite endings
-        if user_input_lower in ["exit", "bye", "bye bye"]:
-            self.state = "ended"
-            return "Goodbye 👋"
-
-        if user_input_lower in ["thanks", "thank you"]:
-            return "You’re welcome 😊"
-
-        # 3️⃣ Detect intent FIRST
-        intent = detect_intent(user_input)
-
-        # 4️⃣ SAVE MEMORY BEFORE ANY DECISION
-        if self.is_important(user_input):
-            self.memory.save(intent, user_input)
-            self.meaningful_inputs += 1
-
-        # 5️⃣ Decide action AFTER memory is saved
-        action = self.decide_action(user_input)
-
-        if action == "recover":
-            self.state = "listening"
-            return "Alright 🙂 What would you like to talk about?"
-
-        if action == "recommend":
-            self.state = "recommending"
-            return self.proactive_recommendation()
-
-        # 6️⃣ Default listening response
-        return smart_fake_ai(user_input, self.memory.get_all())
+    # ---------- AGENT DECISION ----------
 
     def decide_action(self, user_input):
         text = user_input.lower()
@@ -98,49 +97,95 @@ class Agent:
 
         return "listen"
 
+    # ---------- MAIN RESPONSE ----------
 
-    def proactive_summary(self):
-            memories = self.memory.get_all()
+    def respond(self, user_input):
+        user_input_lower = user_input.lower()
 
-            if not memories:
-                return "Alright 👍 If you need help later, just tell me."
+        # 1️⃣ Memory questions
+        if self.is_memory_question(user_input_lower):
+            return self.answer_about_user()
 
-            summary = "Here’s what I know about you so far:\n"
-            for m in memories:
-                summary += f"- {m['text']}\n"
+        # 2️⃣ Exit
+        if user_input_lower in ["exit", "bye", "bye bye"]:
+            self.state = "ended"
+            return "Goodbye 👋"
 
-            summary += "\nBased on this, I can guide you further anytime."
-            return summary
-        
-    def proactive_recommendation(self):
-            memories = self.memory.get_all()
-            texts = " ".join([m["text"].lower() for m in memories])
+        if user_input_lower in ["thanks", "thank you"]:
+            return "You’re welcome 😊"
 
-            # Football logic
-            if "football" in texts:
-                if "shoot" in texts or "shooting" in texts:
-                    return (
-                        "Since you like football and want to improve shooting:\n"
-                        "1️⃣ Practice inside-foot shots daily\n"
-                        "2️⃣ Do target shooting drills\n"
-                        "3️⃣ Watch Lionel Messi’s finishing techniques\n"
-                        "4️⃣ Use your speed to create shooting angles"
-                    )
-                return (
-                    "You like football. Start with ball control, passing, and basic drills.\n"
-                    "Once comfortable, focus on shooting and positioning."
-                )
+        # 3️⃣ Intent
+        #intent = detect_intent(user_input)
 
-            # AIML logic
-            if "aiml" in texts or "ai" in texts:
-                return (
-                    "Since you’re interested in AI/ML:\n"
-                    "1️⃣ Strengthen Python basics\n"
-                    "2️⃣ Learn ML fundamentals\n"
-                    "3️⃣ Build small projects\n"
-                    "4️⃣ Practice consistently"
-                )
-
-            return "Based on what you shared, focus on skill-building and daily practice."
+        if self.is_important(user_input):
+            existing_memories = [m["text"].lower() for m in self.memory.get_all()]
+            if user_input.lower() not in existing_memories:
+                self.memory.save("user_fact", user_input)
+                self.meaningful_inputs += 1
 
 
+        # 5️⃣ TOOL PRIORITY
+        tool_to_use = self.should_use_tool(user_input)
+        if tool_to_use:
+            plan = self.run_tool(tool_to_use)
+
+            title_map = {
+                "python": "📘 Python Learning Roadmap",
+                "ml": "🤖 Machine Learning Roadmap",
+                "ds": "📊 Data Science Roadmap"
+            }
+
+            raw_text = title_map.get(tool_to_use, "📘 Learning Roadmap") + ":\n"
+            for step in plan:
+                raw_text += f"- {step}\n"
+
+            raw_text = f"(Tool used: {tool_to_use.upper()})\n\n" + raw_text
+            prompt = f"""
+            You are a friendly career mentor.
+
+            TASK:
+            Explain the following learning roadmap to a beginner.
+
+            RULES:
+            - Keep it simple
+            - Use short sentences
+            - Do NOT add extra topics
+            - Do NOT repeat steps
+            - Encourage the learner briefly at the end
+
+            ROADMAP:
+            {raw_text}
+            """
+
+            return generate_response(prompt)
+
+        # 6️⃣ Other actions
+        action = self.decide_action(user_input)
+
+        if action == "recover":
+            return "Alright 🙂 Let’s reset. What do you want to talk about?"
+
+        if action == "recommend":
+            return "I’ve shared my suggestions. Tell me if you want help with something else."
+
+        # 7️⃣ Default LLM response
+        memory_context = "\n".join(
+            [f"- {m['text']}" for m in self.memory.get_all()]
+        )
+
+        prompt = f"""
+        You are a personal AI assistant.
+        KNOWN FACTS ABOUT USER:
+        {memory_context}
+
+        USER MESSAGE:
+        {user_input}
+
+        INSTRUCTIONS:
+        - Reply in 2–4 sentences
+        - Be clear and friendly
+        - Use simple language
+        - If unsure, give a suggestion, not a fact
+        """
+
+        return generate_response(prompt)
