@@ -72,11 +72,21 @@ class Agent:
         if not memories:
             return "I don’t know much about you yet. You can tell me about your interests or background."
 
-        summary = "Here’s what I remember about you:\n"
+        # 1️⃣ Normalize & deduplicate
+        unique_facts = {}
         for m in memories:
-            summary += f"- {m['text']}\n"
+            key = m["text"].strip().lower()
+            unique_facts[key] = m["text"].strip()
 
-        return summary
+        # 2️⃣ Build clean summary
+        summary = "Here’s what I remember about you:\n"
+        for fact in unique_facts.values():
+            summary += f"- {fact}\n"
+
+        confidence = self.calculate_confidence()
+        return f"{summary}\n🔎 Confidence: {confidence}%"
+
+
 
     # ---------- AGENT DECISION ----------
 
@@ -96,6 +106,28 @@ class Agent:
             return "recommend"
 
         return "listen"
+    
+    def calculate_confidence(self, used_tool=False):
+        """
+        Heuristic confidence score (0–100)
+        """
+        score = 40  # base confidence
+
+        memory_count = len(self.memory.get_all())
+
+        # More memory → more confidence
+        if memory_count >= 1:
+            score += 15
+        if memory_count >= 3:
+            score += 15
+
+        # Tool-based answers are more reliable
+        if used_tool:
+            score += 20
+
+        # Cap score
+        return min(score, 100)
+
 
     # ---------- MAIN RESPONSE ----------
 
@@ -157,7 +189,11 @@ class Agent:
             {raw_text}
             """
 
-            return generate_response(prompt)
+            response_text = generate_response(prompt)
+            confidence = self.calculate_confidence(used_tool=True)
+
+            return f"{response_text}\n\n🔎 Confidence: {confidence}%"
+
 
         # 6️⃣ Other actions
         action = self.decide_action(user_input)
@@ -188,4 +224,8 @@ class Agent:
         - If unsure, give a suggestion, not a fact
         """
 
-        return generate_response(prompt)
+        response_text = generate_response(prompt)
+        confidence = self.calculate_confidence(used_tool=False)
+
+        return f"{response_text}\n\n🔎 Confidence: {confidence}%"
+
