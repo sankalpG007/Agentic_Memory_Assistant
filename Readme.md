@@ -1,114 +1,190 @@
-# 🧠 Agentic Memory Assistant (Local, Zero-Cost)
+🧠 Agentic Memory Assistant
 
-An **Agentic AI Assistant** built from scratch using Python that can:
-- remember user information persistently
-- decide when to use tools (Python / ML / Data Science roadmaps)
-- summarize memory intelligently
-- respond using a **local LLM (TinyLlama via Ollama)**
-- show a **confidence score** for every response
+Local • Zero-Cost • Explainable Agentic AI
 
-This project is designed as a **learning-focused, zero-cost Agentic AI system**, progressing from beginner to intermediate concepts.
+An Agentic AI Assistant built from scratch in Python that demonstrates memory, tool usage, explainability, and UI transparency — all running locally without paid APIs.
 
----
+This project focuses on agent architecture, not just LLM calls.
 
-## 🚀 Features
+🚀 Key Features
+🤖 Agentic Decision-Making
 
-### 🤖 Agentic Behavior
-- Rule-based decision making (no blind LLM usage)
-- Tool prioritization over free chat
-- State-aware responses
+Rule-based reasoning (not blind LLM usage)
 
-### 🧠 Persistent Memory
-- Stores important user facts in a JSON file
-- Prevents duplicate memory entries
-- Summarizes memory automatically on recall
+Decides when to use tools vs normal chat
 
-### 🛠️ Tool Usage
-The agent can intelligently decide to use:
-- 📘 Python Study Planner
-- 🤖 Machine Learning Roadmap
-- 📊 Data Science Roadmap
+Clear separation between logic and language
 
-### 🧩 Local LLM Integration
-- Uses **TinyLlama** via **Ollama**
-- Fully offline & free
-- LLM used only for natural language generation (not decisions)
+🧠 Persistent Memory
 
-### 📊 Confidence Score
-- Every response includes a **confidence score (0–100%)**
-- Based on:
-  - memory availability
-  - tool usage
-  - response type
-- Improves transparency and trust
+Stores important user facts in a JSON file
 
----
+Prevents duplicate entries
 
-## 🧱 Tech Stack
+Automatically summarizes memory on recall
 
-| Component | Technology |
-|--------|------------|
-| Language | Python |
-| Agent Logic | Rule-based |
-| Memory | JSON (Persistent) |
-| LLM | TinyLlama (via Ollama) |
-| Environment | Python venv |
-| Cost | ₹0 (Free & Local) |
+🛠 Tool-Oriented Responses
 
----
+The agent intelligently uses tools when required:
 
-## 📁 Project Structure
-agentic-memory-assistant/
+📘 Python Learning Roadmap
+
+🤖 Machine Learning Roadmap
+
+📊 Data Science Roadmap
+
+Each tool usage is explicitly shown in the UI.
+
+🔎 Confidence Scoring
+
+Every response includes a confidence score (0–100%)
+
+Based on:
+
+memory availability
+
+tool usage
+
+response type
+
+Improves transparency and trust
+
+🖥 Web UI (Streamlit)
+
+Chat-style interface (ChatGPT-like)
+
+Sidebar with:
+
+Live Memory Viewer
+
+Reset Memory & Chat
+
+Tool usage badges shown in chat
+
+Fully local & fast
+
+🤖 Local LLM Integration
+
+Uses TinyLlama via Ollama
+
+Runs fully offline
+
+LLM is used only for language generation, not decisions
+
+🧱 Tech Stack
+Layer	Technology
+Language	Python
+Agent Logic	Rule-based
+Memory	JSON (Persistent)
+LLM	TinyLlama (Ollama)
+UI	Streamlit
+Environment	Python venv
+Cost	₹0 (Free & Local)
+📁 Project Structure
+Agentic_Memory_Assistant/
 │
-├── agent.py # Core agent logic
-├── memory.py # Persistent memory handling
-├── tools.py # Python / ML / DS roadmaps
-├── local_llm.py # Ollama + TinyLlama integration
-├── main.py # CLI entry point
-├── memory.json # Stored user memory
+├── agent.py          # Core agent logic
+├── memory.py         # Persistent memory handling
+├── tools.py          # Python / ML / DS tools
+├── local_llm.py      # Ollama + TinyLlama wrapper
+├── app.py            # Streamlit Web UI
+├── main.py           # CLI version
+├── memory.json       # Stored user memory
+├── assets/
+│   └── demo.gif      # Project demo GIF
 ├── requirements.txt
 └── README.md
 
-
----
-
-## ▶️ How to Run
-
-### 1️⃣ Clone the repo
-```bash
+▶️ How to Run Locally
+1️⃣ Clone the repository
 git clone https://github.com/sankalpG007/Agentic_Memory_Assistant.git
 cd Agentic_Memory_Assistant
 
+2️⃣ Create virtual environment
 python -m venv venv
 venv\Scripts\activate   # Windows
 
+3️⃣ Install dependencies
 pip install -r requirements.txt
 
-Install Ollama & TinyLlama
+4️⃣ Install Ollama & TinyLlama
+
+Download Ollama: https://ollama.com
+
 ollama pull tinyllama
 
-python main.py
+5️⃣ Run Web UI
+streamlit run app.py
 
-#Learning Goals of This Project
-Understand Agentic AI architecture
-Learn tool-using agents
-Implement persistent memory
-Handle real-world constraints (low RAM, no API)
-Practice prompt engineering for small LLMs
-Build explainable, transparent AI systems
+💬 Example Interaction
+You: I want to learn Python
 
+🛠 Tool used: PYTHON
 
-#Future Improvements
-Semantic memory grouping (AI / ML combined goals)
+📘 Python Learning Roadmap:
+- Learn Python basics
+- Practice with small programs
+- Understand OOP
+- Build mini projects
+
+🔎 Confidence: 90%
+
+You: who am i?
+
+🛠 Tool used: MEMORY
+
+Here’s what I remember about you:
+- I like football
+- I am righty and I run fast
+- I want to learn Python
+- I want to learn machine learning
+
+🔎 Confidence: 75%
+
+🎯 Learning Objectives Achieved
+
+Understanding Agentic AI architecture
+
+Designing tool-using agents
+
+Implementing persistent memory
+
+Handling low-RAM & zero-cost constraints
+
+Prompt engineering for small local LLMs
+
+Building transparent & explainable AI systems
+
+Creating a production-style Web UI
+
+🔮 Future Improvements
+
+Semantic memory grouping (AI/ML goals combined)
+
 Time-based memory decay
-Web UI (Streamlit / React)
+
 FastAPI backend
-Optional cloud LLM integration
+
+React frontend
+
 Multi-agent collaboration
 
-# Author
+Optional cloud LLM support
+
+🙌 Author
+
 Sankalp Satendra Singh
 MCA (AI/ML) Student
 Aspiring Data Scientist / AI Engineer
+
 GitHub: https://github.com/sankalpG007
-LinkedIn: https://linkedin.com/in/sankalp-singh-48670b21a
+
+LinkedIn:https://linkedin.com/in/sankalp-singh-48670b21a
+⭐ If you found this project helpful, feel free to star the repository!
+
+✅ STATUS: PROJECT COMPLETE
+
+You now have a fully working, explainable, agentic AI system with UI.
+
+This is not a toy project.
+This is portfolio-grade.

@@ -1,20 +1,3 @@
 {
-    "memories": [
-        {
-            "type": "general",
-            "text": " i like football"
-        },
-        {
-            "type": "general",
-            "text": "i am righty and i run fast"
-        },
-        {
-            "type": "learning",
-            "text": "I want to learn Python"
-        },
-        {
-            "type": "learning",
-            "text": "I want to learn machine learning"
-        }
-    ]
+    "memories": []
 }

@@ -84,7 +84,12 @@ class Agent:
             summary += f"- {fact}\n"
 
         confidence = self.calculate_confidence()
-        return f"{summary}\n🔎 Confidence: {confidence}%"
+        return {
+            "text": summary,
+            "confidence": confidence,
+            "tool": "memory"
+        }
+
 
 
 
@@ -192,7 +197,12 @@ class Agent:
             response_text = generate_response(prompt)
             confidence = self.calculate_confidence(used_tool=True)
 
-            return f"{response_text}\n\n🔎 Confidence: {confidence}%"
+            return {
+                "text": response_text,
+                "confidence": confidence,
+                "tool": tool_to_use
+            }
+
 
 
         # 6️⃣ Other actions
@@ -227,5 +237,10 @@ class Agent:
         response_text = generate_response(prompt)
         confidence = self.calculate_confidence(used_tool=False)
 
-        return f"{response_text}\n\n🔎 Confidence: {confidence}%"
+        return {
+            "text": response_text,
+            "confidence": confidence,
+            "tool": None
+        }
+
 
