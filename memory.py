@@ -3,18 +3,20 @@ import json
 import os
 
 class Memory:
-    def __init__(self, file_path="memory.json"):
+    def __init__(self, file_path=".streamlit/memory.json"):
         self.file_path = file_path
+        self._ensure_dir()
         self.memories = self._load()
+
+    def _ensure_dir(self):
+        directory = os.path.dirname(self.file_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
 
     def _load(self):
         if os.path.exists(self.file_path):
             with open(self.file_path, "r") as f:
-                data = json.load(f)
-                # Normalize old string memories
-                if data and isinstance(data[0], str):
-                    return [{"intent": "user_fact", "text": t} for t in data]
-                return data
+                return json.load(f)
         return []
 
     def save(self, intent, text):
@@ -35,3 +37,7 @@ class Memory:
 
     def get_all(self):
         return self.memories
+
+    def clear(self):
+        self.memories = []
+        self._persist()

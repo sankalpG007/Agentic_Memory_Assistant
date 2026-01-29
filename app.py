@@ -49,10 +49,11 @@ else:
 
 # -------- Reset Button --------
 st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Reset Memory & Chat"):
+if st.sidebar.button("🔄 Reset Memory & Chat", key="reset_agent"):
     agent.memory.clear()
     st.session_state.chat_history = []
     st.success("Memory and chat reset successfully!")
+    st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.write("👨‍💻 Built by **Sankalp Satendra Singh**")
