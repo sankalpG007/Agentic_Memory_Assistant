@@ -1,3 +1,10 @@
-{
-    "memories": []
-}
+[
+  {
+    "intent": "user_fact",
+    "text": "i like football"
+  },
+  {
+    "intent": "user_fact",
+    "text": "i am righty and run fast"
+  }
+]

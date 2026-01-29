@@ -15,7 +15,12 @@ try:
             break
 
         reply = agent.respond(user_input)
-        print("Agent:", reply)
+        if isinstance(reply, dict):
+            print(f"Agent: {reply['text']}")
+            print(f"Confidence: {reply['confidence']}%")
+        else:
+            print(f"Agent: {reply}")
+
 
 except KeyboardInterrupt:
     print("\nAgent: Conversation ended safely. Bye 👋")

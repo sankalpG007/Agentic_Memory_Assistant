@@ -1,13 +1,6 @@
 # agent.py
-
-from local_llm import generate_response
-from tools import (
-    python_study_planner,
-    ml_roadmap,
-    data_science_roadmap
-)
 from memory import Memory
-from brain import detect_intent
+from tools import python_study_planner, ml_roadmap, data_science_roadmap
 
 
 class Agent:
@@ -16,40 +9,12 @@ class Agent:
         self.meaningful_inputs = 0
         self.state = "listening"
 
-    # ---------- TOOL LOGIC ----------
-
-    def should_use_tool(self, user_input):
-        text = user_input.lower()
-
-        if "python" in text and ("learn" in text or "study" in text or "plan" in text):
-            return "python"
-
-        if ("machine learning" in text or "ml" in text) and ("learn" in text or "roadmap" in text):
-            return "ml"
-
-        if ("data science" in text or "ds" in text) and ("learn" in text or "roadmap" in text):
-            return "ds"
-
-        return None
-
-    def run_tool(self, tool_name):
-        if tool_name == "python":
-            return python_study_planner()
-
-        if tool_name == "ml":
-            return ml_roadmap()
-
-        if tool_name == "ds":
-            return data_science_roadmap()
-
-        return []
-
-    # ---------- MEMORY LOGIC ----------
+    # ---------- HELPERS ----------
 
     def is_important(self, text):
         keywords = [
             "i am", "i want", "my goal",
-            "i have interest", "i like",
+            "i like", "i have interest",
             "i live", "i am in"
         ]
         return any(k in text.lower() for k in keywords)
@@ -58,189 +23,149 @@ class Agent:
         questions = [
             "who am i",
             "what do you know about me",
-            "do you remember me",
             "what do you remember",
-            "tell me about me"
+            "tell me about me",
+            "do you remember me"
         ]
-        text = text.lower()
-        return any(q in text for q in questions)
+        return any(q in text.lower() for q in questions)
 
+    def calculate_confidence(self, used_tool=False):
+        score = 40
+        memory_count = len(self.memory.get_all())
+
+        if memory_count >= 1:
+            score += 15
+        if memory_count >= 3:
+            score += 15
+        if used_tool:
+            score += 20
+
+        return min(score, 100)
+
+    # ---------- MEMORY ----------
 
     def answer_about_user(self):
         memories = self.memory.get_all()
 
         if not memories:
-            return "I don’t know much about you yet. You can tell me about your interests or background."
+            return {
+                "text": "I don’t know much about you yet. Tell me something about yourself 🙂",
+                "confidence": 30,
+                "tool": "memory"
+            }
 
-        # 1️⃣ Normalize & deduplicate
-        unique_facts = {}
+        unique = {}
         for m in memories:
-            key = m["text"].strip().lower()
-            unique_facts[key] = m["text"].strip()
+            key = m["text"].lower()
+            unique[key] = m["text"]
 
-        # 2️⃣ Build clean summary
-        summary = "Here’s what I remember about you:\n"
-        for fact in unique_facts.values():
-            summary += f"- {fact}\n"
+        text = "Here’s what I remember about you:\n"
+        for fact in unique.values():
+            text += f"- {fact}\n"
 
-        confidence = self.calculate_confidence()
         return {
-            "text": summary,
-            "confidence": confidence,
+            "text": text,
+            "confidence": self.calculate_confidence(),
             "tool": "memory"
         }
 
+    # ---------- TOOLS ----------
 
+    def should_use_tool(self, text):
+        t = text.lower()
 
+        if "python" in t and "learn" in t:
+            return "python"
+        if "machine learning" in t or "ml roadmap" in t:
+            return "ml"
+        if "data science" in t or "ds roadmap" in t:
+            return "ds"
 
-    # ---------- AGENT DECISION ----------
+        return None
 
-    def decide_action(self, user_input):
-        text = user_input.lower()
+    def run_tool(self, tool):
+        if tool == "python":
+            return python_study_planner()
+        if tool == "ml":
+            return ml_roadmap()
+        if tool == "ds":
+            return data_science_roadmap()
+        return []
 
-        if any(w in text for w in ["bye", "exit"]):
-            return "end"
+    # ---------- AGENTIC BEHAVIOR ----------
 
-        if any(w in text for w in ["thank"]):
-            return "polite_end"
+    def proactive_recommendation(self):
+        memories = self.memory.get_all()
+        text_blob = " ".join(m["text"].lower() for m in memories)
 
-        if any(w in text for w in ["bad", "useless"]):
-            return "recover"
+        if "football" in text_blob:
+            if "fast" in text_blob or "run" in text_blob:
+                return (
+                    "Since you like football and you’re fast:\n"
+                    "- Play as a winger or forward\n"
+                    "- Do sprint + dribbling drills\n"
+                    "- Practice shooting while running\n"
+                )
+            return (
+                "Since you like football:\n"
+                "- Improve ball control\n"
+                "- Work on passing and shooting\n"
+            )
 
-        if self.meaningful_inputs >= 2:
-            return "recommend"
+        if "ai" in text_blob or "ml" in text_blob:
+            return (
+                "Since you’re interested in AI/ML:\n"
+                "- Strengthen Python basics\n"
+                "- Learn ML fundamentals\n"
+                "- Build small projects"
+            )
 
-        return "listen"
-    
-    def calculate_confidence(self, used_tool=False):
-        """
-        Heuristic confidence score (0–100)
-        """
-        score = 40  # base confidence
+        return "Based on what you shared, keep practicing and learning consistently."
 
-        memory_count = len(self.memory.get_all())
-
-        # More memory → more confidence
-        if memory_count >= 1:
-            score += 15
-        if memory_count >= 3:
-            score += 15
-
-        # Tool-based answers are more reliable
-        if used_tool:
-            score += 20
-
-        # Cap score
-        return min(score, 100)
-
-
-    # ---------- MAIN RESPONSE ----------
+    # ---------- MAIN ----------
 
     def respond(self, user_input):
-        user_input_lower = user_input.lower()
+        text = user_input.lower()
 
-        # 1️⃣ Memory questions
-        if self.is_memory_question(user_input_lower):
+        # Memory questions
+        if self.is_memory_question(text):
             return self.answer_about_user()
 
-        # 2️⃣ Exit
-        if user_input_lower in ["exit", "bye", "bye bye"]:
-            self.state = "ended"
-            return "Goodbye 👋"
+        # Exit
+        if text in ["exit", "bye"]:
+            return {"text": "Goodbye 👋", "confidence": 100, "tool": None}
 
-        if user_input_lower in ["thanks", "thank you"]:
-            return "You’re welcome 😊"
-
-        # 3️⃣ Intent
-        #intent = detect_intent(user_input)
-
+        # Save memory
         if self.is_important(user_input):
-            existing_memories = [m["text"].lower() for m in self.memory.get_all()]
-            if user_input.lower() not in existing_memories:
-                self.memory.save("user_fact", user_input)
-                self.meaningful_inputs += 1
+            self.memory.save("user_fact", user_input)
+            self.meaningful_inputs += 1
 
-
-        # 5️⃣ TOOL PRIORITY
-        tool_to_use = self.should_use_tool(user_input)
-        if tool_to_use:
-            plan = self.run_tool(tool_to_use)
-
-            title_map = {
-                "python": "📘 Python Learning Roadmap",
-                "ml": "🤖 Machine Learning Roadmap",
-                "ds": "📊 Data Science Roadmap"
-            }
-
-            raw_text = title_map.get(tool_to_use, "📘 Learning Roadmap") + ":\n"
+        # Tool usage
+        tool = self.should_use_tool(user_input)
+        if tool:
+            plan = self.run_tool(tool)
+            response = f"{tool.upper()} ROADMAP:\n"
             for step in plan:
-                raw_text += f"- {step}\n"
-
-            raw_text = f"(Tool used: {tool_to_use.upper()})\n\n" + raw_text
-            prompt = f"""
-            You are a friendly career mentor.
-
-            TASK:
-            Explain the following learning roadmap to a beginner.
-
-            RULES:
-            - Keep it simple
-            - Use short sentences
-            - Do NOT add extra topics
-            - Do NOT repeat steps
-            - Encourage the learner briefly at the end
-
-            ROADMAP:
-            {raw_text}
-            """
-
-            response_text = generate_response(prompt)
-            confidence = self.calculate_confidence(used_tool=True)
+                response += f"- {step}\n"
 
             return {
-                "text": response_text,
-                "confidence": confidence,
-                "tool": tool_to_use
+                "text": response,
+                "confidence": self.calculate_confidence(used_tool=True),
+                "tool": tool
             }
 
+        # One-time recommendation
+        if self.meaningful_inputs >= 2 and self.state != "recommended":
+            self.state = "recommended"
+            return {
+                "text": self.proactive_recommendation(),
+                "confidence": self.calculate_confidence(),
+                "tool": "recommendation"
+            }
 
-
-        # 6️⃣ Other actions
-        action = self.decide_action(user_input)
-
-        if action == "recover":
-            return "Alright 🙂 Let’s reset. What do you want to talk about?"
-
-        if action == "recommend":
-            return "I’ve shared my suggestions. Tell me if you want help with something else."
-
-        # 7️⃣ Default LLM response
-        memory_context = "\n".join(
-            [f"- {m['text']}" for m in self.memory.get_all()]
-        )
-
-        prompt = f"""
-        You are a personal AI assistant.
-        KNOWN FACTS ABOUT USER:
-        {memory_context}
-
-        USER MESSAGE:
-        {user_input}
-
-        INSTRUCTIONS:
-        - Reply in 2–4 sentences
-        - Be clear and friendly
-        - Use simple language
-        - If unsure, give a suggestion, not a fact
-        """
-
-        response_text = generate_response(prompt)
-        confidence = self.calculate_confidence(used_tool=False)
-
+        # Default
         return {
-            "text": response_text,
-            "confidence": confidence,
+            "text": "Tell me more 🙂 I’m learning about you.",
+            "confidence": 50,
             "tool": None
         }
-
-
