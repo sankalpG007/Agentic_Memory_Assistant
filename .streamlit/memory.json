@@ -10,5 +10,13 @@
   {
     "intent": "user_fact",
     "text": "i am righty and run fast"
+  },
+  {
+    "intent": "user_fact",
+    "text": "i like to dance"
+  },
+  {
+    "intent": "user_fact",
+    "text": "i like freestyle dancing"
   }
 ]

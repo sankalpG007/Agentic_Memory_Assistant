@@ -8,6 +8,7 @@ class Agent:
         self.memory = Memory()
         self.meaningful_inputs = 0
         self.state = "listening"
+        self.current_topic = None
 
     # ---------- HELPERS ----------
 
@@ -95,32 +96,34 @@ class Agent:
     # ---------- AGENTIC BEHAVIOR ----------
 
     def proactive_recommendation(self):
-        memories = self.memory.get_all()
-        text_blob = " ".join(m["text"].lower() for m in memories)
+        topic = self.current_topic
 
-        if "football" in text_blob:
-            if "fast" in text_blob or "run" in text_blob:
-                return (
-                    "Since you like football and you’re fast:\n"
-                    "- Play as a winger or forward\n"
-                    "- Do sprint + dribbling drills\n"
-                    "- Practice shooting while running\n"
-                )
+        if topic == "dance":
             return (
-                "Since you like football:\n"
-                "- Improve ball control\n"
-                "- Work on passing and shooting\n"
+                "Since you enjoy freestyle dancing:\n"
+                "- Practice musicality and rhythm daily\n"
+                "- Record yourself to refine movements\n"
+                "- Learn styles that complement freestyle (hip-hop, popping)\n"
+                "- Freestyle to different genres for creativity"
             )
 
-        if "ai" in text_blob or "ml" in text_blob:
+        if topic == "football":
+            return (
+                "Since you like football and you’re fast:\n"
+                "- Play as a winger or forward\n"
+                "- Practice sprint + dribbling drills\n"
+                "- Work on finishing while running"
+            )
+
+        if topic == "aiml":
             return (
                 "Since you’re interested in AI/ML:\n"
-                "- Strengthen Python basics\n"
-                "- Learn ML fundamentals\n"
-                "- Build small projects"
+                "- Strengthen Python fundamentals\n"
+                "- Learn ML basics step by step\n"
+                "- Build small projects consistently"
             )
 
-        return "Based on what you shared, keep practicing and learning consistently."
+        return "Tell me what you want help with right now 🙂"
 
     # ---------- MAIN ----------
 
@@ -139,6 +142,15 @@ class Agent:
         if self.is_important(user_input):
             self.memory.save("user_fact", user_input)
             self.meaningful_inputs += 1
+
+            if "dance" in user_input.lower():
+                self.current_topic = "dance"
+            elif "football" in user_input.lower():
+                self.current_topic = "football"
+            elif "python" in user_input.lower():
+                self.current_topic = "python"
+            elif "ml" in user_input.lower() or "ai" in user_input.lower():
+                self.current_topic = "aiml"
 
         # Tool usage
         tool = self.should_use_tool(user_input)
@@ -163,9 +175,19 @@ class Agent:
                 "tool": "recommendation"
             }
 
-        # Default
+        if self.meaningful_inputs >= 2:
+            return {
+                "text": (
+                    "I think I know enough to help you now 🙂\n"
+                    "You can ask me for advice, recommendations, or say 'what do you know about me?'."
+                ),
+                "confidence": self.calculate_confidence(),
+                "tool": None
+                }
+
         return {
-            "text": "Tell me more 🙂 I’m learning about you.",
-            "confidence": 50,
+            "text": "Got it 👍 Tell me one more thing about you if you’d like.",
+            "confidence": 45,
             "tool": None
         }
+
