@@ -18,5 +18,13 @@
   {
     "intent": "user_fact",
     "text": "i like freestyle dancing"
+  },
+  {
+    "intent": "user_fact",
+    "text": "I want to learn Python"
+  },
+  {
+    "intent": "user_fact",
+    "text": "I like machine learning"
   }
 ]
