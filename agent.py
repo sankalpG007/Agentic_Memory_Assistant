@@ -1,26 +1,87 @@
-# agent.py
 from memory import Memory
-from tools import python_study_planner, ml_roadmap, data_science_roadmap
+from semantic_memory import SemanticMemory
+from conversation_memory import ConversationMemory
+from router import AgentRouter
+from langchain_llm import LangChainLLM
+from graph import build_agent_graph
+from tools import (
+    python_study_planner,
+    ml_roadmap,
+    data_science_roadmap
+)
+
+from local_llm import generate_response
 
 
 class Agent:
+
     def __init__(self):
+
+        # =====================================================
+        # LONG-TERM MEMORY
+        # =====================================================
+
         self.memory = Memory()
+
+        self.semantic_memory = SemanticMemory()
+
+        # =====================================================
+        # SHORT-TERM MEMORY
+        # =====================================================
+
+        self.conversation_memory = ConversationMemory(
+            max_messages=6
+        )
+
+        # =====================================================
+        # AGENT ROUTER
+        # =====================================================
+
+        self.router = AgentRouter()
+
+        self.langchain_llm = LangChainLLM()
+
+        self.graph = build_agent_graph(self)
+
+        # =====================================================
+        # AGENT STATE
+        # =====================================================
+
         self.meaningful_inputs = 0
         self.state = "listening"
         self.current_topic = None
 
-    # ---------- HELPERS ----------
+
+    # =========================================================
+    # MEMORY DETECTION
+    # =========================================================
 
     def is_important(self, text):
+
         keywords = [
-            "i am", "i want", "my goal",
-            "i like", "i have interest",
-            "i live", "i am in"
+            "i am",
+            "i want",
+            "my goal",
+            "i like",
+            "i have interest",
+            "i live",
+            "i am in"
         ]
-        return any(k in text.lower() for k in keywords)
+
+        text = text.lower()
+
+        return any(
+            keyword in text
+            for keyword in keywords
+        )
+
+
+    # =========================================================
+    # MEMORY QUESTION DETECTION
+    # =========================================================
 
     def is_memory_question(self, text):
+
         questions = [
             "who am i",
             "what do you know about me",
@@ -28,166 +89,511 @@ class Agent:
             "tell me about me",
             "do you remember me"
         ]
-        return any(q in text.lower() for q in questions)
+
+        text = text.lower()
+
+        return any(
+            question in text
+            for question in questions
+        )
+
+
+    # =========================================================
+    # CONFIDENCE
+    # =========================================================
 
     def calculate_confidence(self, used_tool=False):
+
         score = 40
-        memory_count = len(self.memory.get_all())
+
+        memory_count = len(
+            self.memory.get_all()
+        )
 
         if memory_count >= 1:
             score += 15
+
         if memory_count >= 3:
             score += 15
+
         if used_tool:
             score += 20
 
         return min(score, 100)
 
-    # ---------- MEMORY ----------
 
-    def answer_about_user(self):
-        memories = self.memory.get_all()
+    # =========================================================
+    # LLM + MEMORY
+    # =========================================================
 
-        if not memories:
+    def generate_llm_response(self, user_input):
+
+        # ========================================================
+        # SEMANTIC MEMORY RETRIEVAL
+        # ========================================================
+
+        retrieved_memories = self.semantic_memory.search(
+            user_input,
+            top_k=5
+        )
+
+        relevant_memories = []
+
+        for memory in retrieved_memories:
+
+            score = memory.get("score", 0)
+            text = memory.get("text", "").strip()
+
+            if not text:
+                continue
+
+            if score < 0.30:
+                continue
+
+            relevant_memories.append({
+                "text": text,
+                "score": score
+            })
+
+        # ========================================================
+        # BUILD MEMORY CONTEXT
+        # ========================================================
+
+        if relevant_memories:
+
+            memory_context = "\n".join(
+                f"- {item['text']}"
+                for item in relevant_memories
+            )
+
+        else:
+
+            memory_context = "No relevant user memory found."
+
+        # ========================================================
+        # SHORT-TERM CONVERSATION
+        # ========================================================
+
+        conversation_context = (
+            self.conversation_memory.get_context()
+        )
+
+        # ========================================================
+        # LANGCHAIN GENERATION
+        # ========================================================
+
+        response = self.langchain_llm.generate(
+            question=user_input,
+            memory=memory_context,
+            conversation=conversation_context
+        )
+
+        # ========================================================
+        # SAVE CONVERSATION
+        # ========================================================
+
+        self.conversation_memory.add(
+            user_input,
+            response
+        )
+
+        return response.strip()
+
+    # =========================================================
+    # ANSWER MEMORY QUESTION
+    # =========================================================
+
+        # =========================================================
+    # ANSWER MEMORY QUESTION
+    # =========================================================
+
+    def answer_about_user(self, user_input):
+
+        retrieved = self.semantic_memory.search(
+            user_input,
+            top_k=5
+        )
+
+        if not retrieved:
+
             return {
-                "text": "I don’t know much about you yet. Tell me something about yourself 🙂",
-                "confidence": 30,
-                "tool": "memory"
+                "text": (
+                    "I don't have any stored "
+                    "information about that yet."
+                ),
+                "confidence": 50,
+                "tool": "memory",
+                "intent": "memory_retrieval"
             }
 
-        unique = {}
-        for m in memories:
-            key = m["text"].lower()
-            unique[key] = m["text"]
+        # -----------------------------------------------------
+        # KEEP RELEVANT RESULTS
+        # -----------------------------------------------------
 
-        text = "Here’s what I remember about you:\n"
-        for fact in unique.values():
-            text += f"- {fact}\n"
+        relevant = []
+
+        for memory in retrieved:
+
+            score = memory.get(
+                "score",
+                0
+            )
+
+            if score >= 0.30:
+
+                relevant.append(
+                    memory
+                )
+
+        if not relevant:
+
+            return {
+                "text": (
+                    "I don't have enough "
+                    "stored information to "
+                    "answer that yet."
+                ),
+                "confidence": 50,
+                "tool": "memory",
+                "intent": "memory_retrieval"
+            }
+
+        # -----------------------------------------------------
+        # BUILD RESPONSE
+        # -----------------------------------------------------
+
+        response = (
+            "Based on what I remember:\n\n"
+        )
+
+        for memory in relevant:
+
+            response += (
+                f"- {memory['text']}\n"
+            )
 
         return {
-            "text": text,
-            "confidence": self.calculate_confidence(),
-            "tool": "memory"
+            "text": response.strip(),
+            "confidence": 95,
+            "tool": "memory",
+            "intent": "memory_retrieval"
         }
 
-    # ---------- TOOLS ----------
-
-    def should_use_tool(self, text):
-        t = text.lower()
-
-        if "python" in t and "learn" in t:
-            return "python"
-        if "machine learning" in t or "ml roadmap" in t:
-            return "ml"
-        if "data science" in t or "ds roadmap" in t:
-            return "ds"
-
-        return None
+    # =========================================================
+    # TOOL EXECUTION
+    # =========================================================
 
     def run_tool(self, tool):
+
         if tool == "python":
+
             return python_study_planner()
+
+
         if tool == "ml":
+
             return ml_roadmap()
+
+
         if tool == "ds":
+
             return data_science_roadmap()
+
+
         return []
 
-    # ---------- AGENTIC BEHAVIOR ----------
+
+    # =========================================================
+    # TOPIC TRACKING
+    # =========================================================
+
+    def update_topic(self, text):
+
+        text = text.lower()
+
+
+        if "dance" in text:
+
+            self.current_topic = "dance"
+
+
+        elif "football" in text:
+
+            self.current_topic = "football"
+
+
+        elif "python" in text:
+
+            self.current_topic = "python"
+
+
+        elif (
+            "machine learning" in text
+            or "ml" in text
+            or "ai" in text
+        ):
+
+            self.current_topic = "aiml"
+
+
+    # =========================================================
+    # PROACTIVE RECOMMENDATION
+    # =========================================================
 
     def proactive_recommendation(self):
-        topic = self.current_topic
 
-        if topic == "dance":
+        if self.current_topic == "dance":
+
             return (
                 "Since you enjoy freestyle dancing:\n"
                 "- Practice musicality and rhythm daily\n"
                 "- Record yourself to refine movements\n"
-                "- Learn styles that complement freestyle (hip-hop, popping)\n"
-                "- Freestyle to different genres for creativity"
+                "- Learn complementary styles"
             )
 
-        if topic == "football":
+
+        if self.current_topic == "football":
+
             return (
-                "Since you like football and you’re fast:\n"
-                "- Play as a winger or forward\n"
-                "- Practice sprint + dribbling drills\n"
-                "- Work on finishing while running"
+                "Since you like football:\n"
+                "- Practice sprint drills\n"
+                "- Work on dribbling\n"
+                "- Improve finishing"
             )
 
-        if topic == "aiml":
+
+        if self.current_topic == "aiml":
+
             return (
-                "Since you’re interested in AI/ML:\n"
-                "- Strengthen Python fundamentals\n"
-                "- Learn ML basics step by step\n"
-                "- Build small projects consistently"
+                "Since you're interested in AI/ML:\n"
+                "- Strengthen Python\n"
+                "- Learn ML fundamentals\n"
+                "- Build practical projects"
             )
 
-        return "Tell me what you want help with right now 🙂"
 
-    # ---------- MAIN ----------
+        return (
+            "Tell me what you want help with right now 🙂"
+        )
+
+
+    # =========================================================
+    # MAIN AGENT LOOP
+    # =========================================================
+
+        # =========================================================
+    # MAIN AGENT LOOP
+    # =========================================================
 
     def respond(self, user_input):
-        text = user_input.lower()
 
-        # Memory questions
-        if self.is_memory_question(text):
-            return self.answer_about_user()
+        text = user_input.lower().strip()
 
-        # Exit
-        if text in ["exit", "bye"]:
-            return {"text": "Goodbye 👋", "confidence": 100, "tool": None}
+        # -----------------------------------------------------
+        # EXIT
+        # -----------------------------------------------------
 
-        # Save memory
-        if self.is_important(user_input):
-            self.memory.save("user_fact", user_input)
+        if text in [
+            "exit",
+            "bye",
+            "quit"
+        ]:
+
+            return {
+                "text": "Goodbye 👋",
+                "confidence": 100,
+                "tool": None,
+                "intent": "exit"
+            }
+
+        # -----------------------------------------------------
+        # UPDATE TOPIC
+        # -----------------------------------------------------
+
+        self.update_topic(
+            text
+        )
+
+        # -----------------------------------------------------
+        # SAVE IMPORTANT USER INFORMATION
+        # -----------------------------------------------------
+
+        if (
+            self.is_important(user_input)
+            and self.is_memory_candidate(user_input)
+        ):
+
+            self.memory.save(
+                "user_fact",
+                user_input
+            )
+
+            memory_type = (
+                self.classify_memory(
+                    user_input
+                )
+            )
+
+            self.semantic_memory.add_memory(
+                memory_type,
+                user_input
+            )
+
             self.meaningful_inputs += 1
 
-            if "dance" in user_input.lower():
-                self.current_topic = "dance"
-            elif "football" in user_input.lower():
-                self.current_topic = "football"
-            elif "python" in user_input.lower():
-                self.current_topic = "python"
-            elif "ml" in user_input.lower() or "ai" in user_input.lower():
-                self.current_topic = "aiml"
+        # -----------------------------------------------------
+        # LANGGRAPH EXECUTION
+        # -----------------------------------------------------
 
-        # Tool usage
-        tool = self.should_use_tool(user_input)
-        if tool:
-            plan = self.run_tool(tool)
-            response = f"{tool.upper()} ROADMAP:\n"
-            for step in plan:
-                response += f"- {step}\n"
-
-            return {
-                "text": response,
-                "confidence": self.calculate_confidence(used_tool=True),
-                "tool": tool
-            }
-
-        # One-time recommendation
-        if self.meaningful_inputs >= 2 and self.state != "recommended":
-            self.state = "recommended"
-            return {
-                "text": self.proactive_recommendation(),
-                "confidence": self.calculate_confidence(),
-                "tool": "recommendation"
-            }
-
-        if self.meaningful_inputs >= 2:
-            return {
-                "text": (
-                    "I think I know enough to help you now 🙂\n"
-                    "You can ask me for advice, recommendations, or say 'what do you know about me?'."
-                ),
-                "confidence": self.calculate_confidence(),
-                "tool": None
-                }
-
-        return {
-            "text": "Got it 👍 Tell me one more thing about you if you’d like.",
-            "confidence": 45,
-            "tool": None
+        initial_state = {
+            "user_input": user_input
         }
 
+        result = self.graph.invoke(
+            initial_state
+        )
+
+        # -----------------------------------------------------
+        # FINAL RESPONSE
+        # -----------------------------------------------------
+
+        return {
+            "text": result.get(
+                "final_response",
+                "I could not generate a response."
+            ),
+
+            "confidence": int(
+                result.get(
+                    "confidence",
+                    0.70
+                ) * 100
+            ),
+
+            "tool": (
+                result.get("tool")
+                or (
+                    "memory"
+                    if result.get("intent")
+                    == "memory_retrieval"
+                    else "llm"
+                )
+            ),
+
+            "intent": result.get(
+                "intent",
+                "general_question"
+            )
+        }
+        # =========================================================
+    # MEMORY CLASSIFICATION
+    # =========================================================
+
+    def classify_memory(self, text):
+        text = text.strip().lower()
+
+        # -----------------------------------------------------
+        # CAREER / GOALS
+        # -----------------------------------------------------
+
+        if any(phrase in text for phrase in [
+            "i want to become",
+            "i want to be",
+            "my goal is",
+            "i want a career",
+            "my career",
+            "i aspire to"
+        ]):
+            return "career_goal"
+
+        # -----------------------------------------------------
+        # LEARNING
+        # -----------------------------------------------------
+
+        if any(phrase in text for phrase in [
+            "i am learning",
+            "i'm learning",
+            "i want to learn",
+            "i am studying",
+            "i'm studying"
+        ]):
+            return "learning"
+
+        # -----------------------------------------------------
+        # PREFERENCES
+        # -----------------------------------------------------
+
+        if any(phrase in text for phrase in [
+            "i like",
+            "i love",
+            "i enjoy",
+            "i prefer"
+        ]):
+            return "preference"
+
+        # -----------------------------------------------------
+        # PERSONAL INFORMATION
+        # -----------------------------------------------------
+
+        if any(phrase in text for phrase in [
+            "my name is",
+            "i am from",
+            "i live in"
+        ]):
+            return "personal"
+
+        return "general"
+
+    # =========================================================
+    # MEMORY CANDIDATE DETECTION
+    # =========================================================
+
+    def is_memory_candidate(self, user_input):
+
+        text = user_input.strip().lower()
+
+        # -----------------------------------------------------
+        # QUESTIONS SHOULD NOT BECOME LONG-TERM MEMORIES
+        # -----------------------------------------------------
+
+        question_starters = (
+            "what ",
+            "who ",
+            "where ",
+            "when ",
+            "why ",
+            "how ",
+            "do i ",
+            "did i ",
+            "am i ",
+            "can you ",
+            "tell me ",
+            "what's ",
+            "whats "
+        )
+
+        if text.endswith("?"):
+            return False
+
+        if text.startswith(question_starters):
+            return False
+
+        # -----------------------------------------------------
+        # PERSONAL FACT PATTERNS
+        # -----------------------------------------------------
+
+        memory_phrases = (
+            "i am ",
+            "i'm ",
+            "i like ",
+            "i love ",
+            "i want ",
+            "i enjoy ",
+            "i prefer ",
+            "my name is ",
+            "my goal is ",
+            "i'm learning ",
+            "i am learning "
+        )
+
+        return text.startswith(memory_phrases)
