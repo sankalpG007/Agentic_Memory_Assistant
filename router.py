@@ -25,30 +25,34 @@ class AgentRouter:
         # =========================================================
 
         memory_questions = [
-            "who am i",
-            "what do you know about me",
-            "what do you remember",
-            "tell me about me",
-            "do you remember me",
-            "what is my name",
-            "what do i like",
-            "what am i learning",
-            "what do i want to become",
-            "what are my goals",
-
-            # Career / goal questions
-            "what is my goal",
-            "what's my goal",
-            "what are my goals",
-            "what is my career goal",
-            "what's my career goal",
-            "what career do i want",
-            "what career do i want to pursue",
-            "what do i want to be",
-            "what am i aiming for",
-            "what do i want to achieve"
-        ]
-
+    "who am i",
+    "what do you know about me",
+    "what do you remember",
+    "tell me about me",
+    "do you remember me",
+    "what is my name",
+    "what do i like",
+    "what do i love",
+    "what do i enjoy",
+    "what do i prefer",
+    "what is my favorite",
+    "what is my favourite",
+    "what are my preferences",
+    "what do i prefer",
+    "what am i learning",
+    "what am i studying",
+    "what do i want to become",
+    "what do i want to be",
+    "what are my goals",
+    "what is my goal",
+    "what's my goal",
+    "what is my career goal",
+    "what's my career goal",
+    "what career do i want",
+    "what career do i want to pursue",
+    "what am i aiming for",
+    "what do i want to achieve"
+]
         if any(
             phrase in text
             for phrase in memory_questions

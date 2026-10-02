@@ -57,23 +57,29 @@ class Agent:
     # =========================================================
 
     def is_important(self, text):
+        text = text.lower().strip()
 
         keywords = [
             "i am",
+            "i'm",
             "i want",
             "my goal",
+            "my goals",
             "i like",
+            "i love",
+            "i enjoy",
+            "i prefer",
+            "my favorite",
+            "my favourite",
+            "my preferred",
             "i have interest",
             "i live",
-            "i am in"
+            "i am in",
+            "i'm in",
+            "my name is"
         ]
 
-        text = text.lower()
-
-        return any(
-            keyword in text
-            for keyword in keywords
-        )
+        return any(keyword in text for keyword in keywords)
 
 
     # =========================================================
@@ -418,10 +424,7 @@ class Agent:
         # SAVE IMPORTANT USER INFORMATION
         # -----------------------------------------------------
 
-        if (
-            self.is_important(user_input)
-            and self.is_memory_candidate(user_input)
-        ):
+        if self.is_memory_candidate(user_input):
 
             self.memory.save(
                 "user_fact",
@@ -490,110 +493,89 @@ class Agent:
     # =========================================================
 
     def classify_memory(self, text):
-        text = text.strip().lower()
+        text = text.lower().strip()
 
-        # -----------------------------------------------------
-        # CAREER / GOALS
-        # -----------------------------------------------------
-
-        if any(phrase in text for phrase in [
+        career_patterns = [
             "i want to become",
             "i want to be",
             "my goal is",
-            "i want a career",
+            "my goals are",
             "my career",
-            "i aspire to"
-        ]):
-            return "career_goal"
+            "i want a career",
+            "i aspire to",
+            "i am aiming for",
+            "i want to achieve"
+        ]
 
-        # -----------------------------------------------------
-        # LEARNING
-        # -----------------------------------------------------
-
-        if any(phrase in text for phrase in [
+        learning_patterns = [
             "i am learning",
             "i'm learning",
             "i want to learn",
             "i am studying",
-            "i'm studying"
-        ]):
-            return "learning"
+            "i'm studying",
+            "i study",
+            "i am currently learning"
+        ]
 
-        # -----------------------------------------------------
-        # PREFERENCES
-        # -----------------------------------------------------
-
-        if any(phrase in text for phrase in [
+        preference_patterns = [
             "i like",
             "i love",
             "i enjoy",
-            "i prefer"
-        ]):
-            return "preference"
+            "i prefer",
+            "my favorite",
+            "my favourite",
+            "my preferred"
+        ]
 
-        # -----------------------------------------------------
-        # PERSONAL INFORMATION
-        # -----------------------------------------------------
-
-        if any(phrase in text for phrase in [
+        personal_patterns = [
             "my name is",
             "i am from",
-            "i live in"
-        ]):
+            "i'm from",
+            "i live in",
+            "i'm living in"
+        ]
+
+        if any(pattern in text for pattern in career_patterns):
+            return "career_goal"
+
+        if any(pattern in text for pattern in learning_patterns):
+            return "learning"
+
+        if any(pattern in text for pattern in preference_patterns):
+            return "preference"
+
+        if any(pattern in text for pattern in personal_patterns):
             return "personal"
 
         return "general"
-
-    # =========================================================
+        # =========================================================
     # MEMORY CANDIDATE DETECTION
     # =========================================================
 
-    def is_memory_candidate(self, user_input):
+    def is_memory_candidate(self, text):
+        text = text.lower().strip()
 
-        text = user_input.strip().lower()
-
-        # -----------------------------------------------------
-        # QUESTIONS SHOULD NOT BECOME LONG-TERM MEMORIES
-        # -----------------------------------------------------
-
-        question_starters = (
-            "what ",
-            "who ",
-            "where ",
-            "when ",
-            "why ",
-            "how ",
-            "do i ",
-            "did i ",
-            "am i ",
-            "can you ",
-            "tell me ",
-            "what's ",
-            "whats "
-        )
-
-        if text.endswith("?"):
-            return False
-
-        if text.startswith(question_starters):
-            return False
-
-        # -----------------------------------------------------
-        # PERSONAL FACT PATTERNS
-        # -----------------------------------------------------
-
-        memory_phrases = (
-            "i am ",
-            "i'm ",
+        memory_patterns = [
             "i like ",
             "i love ",
-            "i want ",
             "i enjoy ",
             "i prefer ",
-            "my name is ",
+            "my favorite ",
+            "my favourite ",
+            "my preferred ",
+            "i want to become ",
+            "i want to be ",
             "my goal is ",
+            "my goals are ",
+            "i want to learn ",
+            "i am learning ",
             "i'm learning ",
-            "i am learning "
-        )
+            "i am studying ",
+            "i'm studying ",
+            "my name is ",
+            "i am from ",
+            "i'm from ",
+            "i live in "
+        ]
 
-        return text.startswith(memory_phrases)
+        return any(pattern in text for pattern in memory_patterns)
